@@ -11,7 +11,7 @@ import (
 
 func Bootstrap() {
 	var err error
-	if err := conf.New("./conf/config.yaml"); err != nil {
+	if err := conf.New("./conf/gdev.yaml"); err != nil {
 		log.Printf("load configuration error, %s.", err.Error())
 		os.Exit(1)
 	}

@@ -4,12 +4,16 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	yaml "gopkg.in/yaml.v2"
 )
 
-var configuration *Configuration
+var (
+	location string
+	configuration *Configuration
+)
 
 type RetryStartup struct {
 	Period time.Duration `json:"period" yaml:"period"`
@@ -41,7 +45,6 @@ type Logger struct {
 }
 
 type Configuration struct {
-	Location string `json:"location" yaml:"location"`
 	Daemon Daemon `json:"daemon" yaml:"daemon"`
 	API API `json:"api" yaml:"api"`
 	Cluster map[string]interface{} `json:"cluster" yaml:"cluster"`
@@ -54,18 +57,36 @@ func New(filePath string) error {
 	if err != nil {
 		return err
 	}
+
 	defer fd.Close()
 	data, err := ioutil.ReadAll(fd)
 	if err != nil {
 		return err
 	}
+
 	config := &Configuration{}
 	if err = yaml.Unmarshal(data, config); err != nil {
 		return err
 	}
+
 	if err = config.parseEnv(); err != nil {
 		return err
 	}
+
+	fi, err := fd.Stat()
+	if err != nil {
+		return err
+	}
+
+	name := strings.ToLower(fi.Name())
+	ret := strings.SplitN(name, ".", 2)
+	if len(ret) >= 2 {
+		location = ret[0]
+	} else {
+		name = "dev"
+	}
+
+	log.Printf("[#conf#] location: %s\n", location)
 	log.Printf("[#conf#] daemon: %+v\n", config.Daemon.RetryStartup)
 	log.Printf("[#conf#] api: %+v\n", config.API)
 	log.Printf("[#conf#] logger: %+v\n", config.Logger)
@@ -74,10 +95,7 @@ func New(filePath string) error {
 }
 
 func Location() string {
-	if configuration != nil {
-		return configuration.Location
-	}
-	return ""
+	return location
 }
 
 func DaemonConfig() *Daemon {

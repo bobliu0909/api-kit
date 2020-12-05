@@ -1,4 +1,3 @@
-location: gdev
 daemon:
   retryStartup:
     period: 10s
