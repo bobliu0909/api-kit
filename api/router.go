@@ -5,12 +5,11 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-
 	"github.com/rl5c/api-gin/api/base"
 	_ "github.com/rl5c/api-gin/api/v1"
 	_ "github.com/rl5c/api-gin/api/v2"
 	"github.com/rl5c/api-gin/conf"
-	"github.com/rl5c/api-gin/pkg/controllers"
+	"github.com/rl5c/api-gin/pkg/cluster"
 )
 
 type IRouter interface {
@@ -23,7 +22,7 @@ type Router struct {
 	handlers map[string]interface{}
 }
 
-func NewRouter(controller controllers.IController, config *conf.API) IRouter {
+func NewRouter(clusterService cluster.IClusterService, config *conf.API) IRouter {
 	mode := gin.DebugMode
 	if !config.Debug {
 		mode = gin.ReleaseMode
@@ -40,7 +39,7 @@ func NewRouter(controller controllers.IController, config *conf.API) IRouter {
 	for _, version := range config.Version {
 		constructor := base.HandlerConstructor(version)
 		if constructor != nil {
-			handlers[version] = constructor(controller)
+			handlers[version] = constructor(clusterService)
 		}
 	}
 	router := &Router{

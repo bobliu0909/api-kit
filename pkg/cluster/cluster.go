@@ -1,10 +1,10 @@
 package cluster
 
 const (
-	NGClusterEngine = "ngCluster"
+	NGClusterService = "ngCluster"
 )
 
-type ICluster interface {
+type IClusterService interface {
 	Startup() error
 	Close()
 }

@@ -2,7 +2,6 @@ package v2
 
 import (
 	"github.com/gin-gonic/gin"
-
 	"github.com/rl5c/api-gin/api/base"
 )
 

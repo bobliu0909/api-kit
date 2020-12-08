@@ -3,7 +3,7 @@ daemon:
     period: 10s
     maxRetry: 3
 api:
-  bind: ':8000'
+  bind: ':8080'
   debug: true
   #tlsConfig:
     #caCert: "ca.cert"
@@ -16,17 +16,16 @@ api:
     - "cors"
     - "logger"
 cluster:
-  ngCluster:
-    uri: etcdv3://10.16.83.70:8789
-    ttl: 160s
-    pulse: 30s
+  uri: etcdv3://10.16.83.70:8789
+  ttl: 160s
+  pulse: 30s
 storage:
-  #mongoDB: null
   ngCloud:
     url: http://apis.newegg.org/datastore/v2/nes
     pageSize: 128
     keepAlive: 60s
     timeout: 35s
+  #mongoDB: null
 logger:
   logFile: ./logs/output.log
   logLevel: info

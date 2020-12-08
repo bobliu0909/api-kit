@@ -89,6 +89,8 @@ func New(filePath string) error {
 	log.Printf("[#conf#] location: %s\n", location)
 	log.Printf("[#conf#] daemon: %+v\n", config.Daemon.RetryStartup)
 	log.Printf("[#conf#] api: %+v\n", config.API)
+	log.Printf("[#conf#] cluster: %+v\n", config.Cluster)
+	log.Printf("[#conf#] storage: %+v\n", config.Storage)
 	log.Printf("[#conf#] logger: %+v\n", config.Logger)
 	configuration = config
 	return nil

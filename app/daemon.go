@@ -8,7 +8,6 @@ import (
 	"github.com/rl5c/api-gin/logger"
 	"github.com/rl5c/api-gin/pkg/cluster"
 	"github.com/rl5c/api-gin/pkg/cluster/ngcluster"
-	"github.com/rl5c/api-gin/pkg/controllers"
 	"github.com/rl5c/api-gin/pkg/storage"
 	"github.com/rl5c/api-gin/pkg/storage/driver"
 )
@@ -16,7 +15,7 @@ import (
 type AppDaemon struct {
 	stopCh    chan struct{}
 	storageDriver driver.IStorageDriver
-	clusterEngine cluster.ICluster
+	clusterService cluster.IClusterService
 	apiServer *api.APIServer
 }
 
@@ -26,41 +25,39 @@ func New() (*AppDaemon, error) {
 	if err != nil {
 		return nil, err
 	}
-	clusterEngine, err := ngcluster.NewCluster(stopCh)
+	clusterService, err := ngcluster.NewClusterService(storageDriver, stopCh)
 	if err != nil {
 		return nil, err
 	}
-	controller := controllers.NewController(clusterEngine, storageDriver)
-	apiServer, err := api.NewServer(context.Background(), controller, conf.APIConfig())
+	apiServer, err := api.NewServer(context.Background(), clusterService, conf.APIConfig())
 	if err != nil {
 		return nil, err
 	}
 	return &AppDaemon{
 		stopCh: stopCh,
 		storageDriver: storageDriver,
-		clusterEngine: clusterEngine,
+		clusterService: clusterService,
 		apiServer: apiServer,
 	}, nil
 }
 
 func (daemon *AppDaemon) Startup() error {
+	var err error
 	defer func() {
-		daemon.storageDriver.Close()
-		daemon.clusterEngine.Close()
-	}()
-	if err := daemon.storageDriver.Open(); err != nil {
-		return err
-	}
-	if err := daemon.clusterEngine.Startup(); err != nil {
-		return err
-	}
-	go func() {
-		err := daemon.apiServer.Startup()
 		if err != nil {
-			logger.ERROR("[#app#] api server startup error, %s.", err.Error())
+			daemon.storageDriver.Close()
+			daemon.clusterService.Close()
 		}
 	}()
-	return nil
+
+	if err = daemon.storageDriver.Open(); err != nil {
+		return err
+	}
+
+	if err = daemon.clusterService.Startup(); err != nil {
+		return err
+	}
+	return daemon.apiServer.Startup()
 }
 
 func (daemon *AppDaemon) Stop() {
@@ -68,6 +65,6 @@ func (daemon *AppDaemon) Stop() {
 	if err := daemon.apiServer.Stop(); err != nil {
 		logger.ERROR("[#app#] api server close error, %s.", err.Error())
 	}
-	daemon.clusterEngine.Close()
+	daemon.clusterService.Close()
 	daemon.storageDriver.Close()
 }

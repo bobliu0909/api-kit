@@ -10,16 +10,17 @@ import (
 
 	"github.com/rl5c/api-gin/conf"
 	"github.com/rl5c/api-gin/logger"
-	"github.com/rl5c/api-gin/pkg/controllers"
+	"github.com/rl5c/api-gin/pkg/cluster"
 )
 
 type APIServer struct {
 	ctx context.Context
 	svc *http.Server
 	tlsConfig *conf.TLSConfig
+	shutdown bool
 }
 
-func NewServer(ctx context.Context, controller controllers.IController, config *conf.API) (*APIServer, error) {
+func NewServer(ctx context.Context, clusterService cluster.IClusterService, config *conf.API) (*APIServer, error) {
 	var tlsConfig *tls.Config
 	if config.TLSConfig != nil {
 		certPool := x509.NewCertPool()
@@ -34,7 +35,7 @@ func NewServer(ctx context.Context, controller controllers.IController, config *
 			NextProtos: []string{"http/1.1"},
 		}
 	}
-	router := NewRouter(controller, config)
+	router := NewRouter(clusterService, config)
 	server := &APIServer{
 		ctx: ctx,
 		svc: &http.Server{
@@ -46,30 +47,45 @@ func NewServer(ctx context.Context, controller controllers.IController, config *
 			TLSConfig: tlsConfig,
 		},
 		tlsConfig: config.TLSConfig,
+		shutdown: false,
 	}
 	return server, nil
 }
 
 func (server *APIServer) Startup() error {
-	var err error
-	if server.tlsConfig != nil {
-		logger.INFO("[#api#] server TLS enabled and listening [%s]...", server.svc.Addr)
-		err = server.svc.ListenAndServeTLS(server.tlsConfig.ServerCert, server.tlsConfig.ServerKey)
-	} else {
-		logger.INFO("[#api#] server listening [%s]...", server.svc.Addr)
-		err = server.svc.ListenAndServe()
-	}
-	if err != nil {
-		if err != http.ErrServerClosed {
-			return err
+	server.shutdown = false
+	startCtx, cancel := context.WithTimeout(server.ctx, time.Second * 5)
+	defer cancel()
+	var	err error
+	errCh := make(chan error)
+	go func(errCh chan<- error) {
+		var e error
+		if server.tlsConfig != nil {
+			logger.INFO("[#api#] server https TLS enabled.", server.svc.Addr)
+			e = server.svc.ListenAndServeTLS(server.tlsConfig.ServerCert, server.tlsConfig.ServerKey)
+		} else {
+			e = server.svc.ListenAndServe()
 		}
+		if !server.shutdown {
+			errCh <- e
+		}
+	}(errCh)
+	select {
+		case <-startCtx.Done():
+			logger.INFO("[#api#] server listening on [%s]...", server.svc.Addr)
+		case err = <-errCh:
+			if err != nil && !server.shutdown {
+				logger.ERROR("[#api#] server listening failed.")
+			}
 	}
-	return nil
+	close(errCh)
+	return err
 }
 
 func (server *APIServer) Stop() error {
 	logger.INFO("[#api#] server stopping...")
 	shutdownCtx, cancel := context.WithTimeout(server.ctx, time.Second * 15)
 	defer cancel()
+	server.shutdown = true
 	return server.svc.Shutdown(shutdownCtx)
 }

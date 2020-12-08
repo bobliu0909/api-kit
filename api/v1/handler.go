@@ -2,19 +2,18 @@ package v1
 
 import (
 	"github.com/gin-gonic/gin"
-
 	"github.com/rl5c/api-gin/api/base"
-	"github.com/rl5c/api-gin/pkg/controllers"
+	"github.com/rl5c/api-gin/pkg/cluster"
 )
 
 type V1Handler struct {
 	base.Handler
 }
 
-func NewDefaultHandler(controller controllers.IController) base.HandlerInterface {
+func NewDefaultHandler(clusterService cluster.IClusterService) base.HandlerInterface {
 	return &V1Handler{
 		Handler: base.Handler{
-			Controller: controller,
+			ClusterService: clusterService,
 		},
 	}
 }
