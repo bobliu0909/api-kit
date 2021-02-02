@@ -8,9 +8,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/rl5c/api-gin/conf"
-	"github.com/rl5c/api-gin/logger"
-	"github.com/rl5c/api-gin/pkg/cluster"
+	"github.com/rl5c/api-server/conf"
+	"github.com/rl5c/api-server/pkg/controllers"
+	"github.com/rl5c/api-server/pkg/logger"
 )
 
 type APIServer struct {
@@ -20,7 +20,7 @@ type APIServer struct {
 	shutdown bool
 }
 
-func NewServer(ctx context.Context, clusterService cluster.IClusterService, config *conf.API) (*APIServer, error) {
+func NewServer(ctx context.Context, cluster string, controller controllers.BaseController, config *conf.APIConfig) (*APIServer, error) {
 	var tlsConfig *tls.Config
 	if config.TLSConfig != nil {
 		certPool := x509.NewCertPool()
@@ -35,14 +35,14 @@ func NewServer(ctx context.Context, clusterService cluster.IClusterService, conf
 			NextProtos: []string{"http/1.1"},
 		}
 	}
-	router := NewRouter(clusterService, config)
+	router := NewRouter(cluster, controller, config)
 	server := &APIServer{
 		ctx: ctx,
 		svc: &http.Server{
 			Addr: config.Bind,
 			Handler: router,
-			WriteTimeout: 15 * time.Second,
-			ReadTimeout: 15 * time.Second,
+			WriteTimeout: 30 * time.Second,
+			ReadTimeout: 30 * time.Second,
 			IdleTimeout: 60 * time.Second,
 			TLSConfig: tlsConfig,
 		},
@@ -54,7 +54,7 @@ func NewServer(ctx context.Context, clusterService cluster.IClusterService, conf
 
 func (server *APIServer) Startup() error {
 	server.shutdown = false
-	startCtx, cancel := context.WithTimeout(server.ctx, time.Second * 5)
+	startCtx, cancel := context.WithTimeout(server.ctx, time.Second * 3)
 	defer cancel()
 	var	err error
 	errCh := make(chan error)

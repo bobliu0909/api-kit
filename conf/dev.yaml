@@ -1,0 +1,33 @@
+daemon:
+  retryStartup:
+    period: 10s
+    maxRetry: 3
+api:
+  bind: ':8189'
+  debug: true
+    #tlsConfig:
+    #caCert: "ca.cert"
+    #serverCert: "server.cert"
+  #serverKey: "server.key"
+  version:
+    - "v1"
+    - "v2"
+  middleware:
+    - "cors"
+    - "logger"
+service:
+  kubeConfig: /root/.kube/config
+  cacheRoot: /var/lib/expsvc
+  maxUpdateFailLimit: 30
+  delayUpdateInterval: 10s
+storage:
+  ngCloud:
+    url: http://apis.newegg.org/datastore/v2/nes
+    pageSize: 128
+    keepAlive: 60s
+    timeout: 35s
+  #mongoDB: null
+logger:
+  logFile: ./logs/output.log
+  logLevel: info
+  logSize: 20971520

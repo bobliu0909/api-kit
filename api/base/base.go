@@ -2,21 +2,21 @@ package base
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/rl5c/api-gin/pkg/cluster"
+	"github.com/rl5c/api-server/pkg/controllers"
 )
 
 type Initializer interface {
-	SetRouter(group *gin.RouterGroup)
+	SetRouter(crdsGroup *gin.RouterGroup, crsGroup *gin.RouterGroup)
 }
 
 type Handler struct {
 	Initializer
-	ClusterService cluster.IClusterService
+	Controller controllers.BaseController
 }
 
 type HandlerInterface interface{}
 
-type ConstructorHandlerFunc func(clusterService cluster.IClusterService) HandlerInterface
+type ConstructorHandlerFunc func(Controller controllers.BaseController) HandlerInterface
 
 var (
 	handlers = map[string]ConstructorHandlerFunc{}

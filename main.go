@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/rl5c/api-gin/app"
+	"github.com/rl5c/api-server/app"
 )
 
 func main() {

@@ -1,22 +1,37 @@
 package app
 
 import (
+	"flag"
+	"fmt"
 	"log"
 	"os"
 	"time"
 
-	"github.com/rl5c/api-gin/conf"
-	"github.com/rl5c/api-gin/logger"
+	"github.com/rl5c/api-server/conf"
+	"github.com/rl5c/api-server/pkg/logger"
 )
 
 func Bootstrap() {
+	var configFile string
+	flag.StringVar(&configFile, "configFile", "", "set a config path.")
+	flag.Parse()
+
+	if configFile == "" {
+		value := os.Getenv("APP_CONFIG_NAME")
+		if value == "" {
+			log.Printf("config env 'APP_CONFIG_NAME' invalid.")
+			os.Exit(1)
+		}
+		configFile = fmt.Sprintf("./conf/%s.yaml", value)
+	}
+
 	var err error
-	if err := conf.New("./conf/gdev.yaml"); err != nil {
-		log.Printf("load configuration error, %s.", err.Error())
+	if err := conf.New(configFile); err != nil {
+		log.Printf("configuration error, %s.", err.Error())
 		os.Exit(1)
 	}
 
-	loggerCfg := conf.LoggerConfig()
+	loggerCfg := conf.LoggerConfigValue()
 	logger.OPEN(&logger.Args{
 		FileName: loggerCfg.LogFile,
 		Level:    loggerCfg.LogLevel,
@@ -24,14 +39,15 @@ func Bootstrap() {
 	})
 
 	var daemon *AppDaemon
-	if daemon, err = New(); err != nil {
-		log.Printf("server daemon construct error, %s.", err.Error())
+	stopCh := make(chan struct{})
+	if daemon, err = New(stopCh); err != nil {
+		logger.ERROR("server daemon construct error, %s.", err.Error())
 		os.Exit(1)
 	}
 
 	logger.INFO("[#app#] server daemon starting...")
 	retry := 0
-	daemonCfg := conf.DaemonConfig()
+	daemonCfg := conf.DaemonConfigValue()
 	for {
 		if err != nil {
 			if daemonCfg.RetryStartup == nil || daemonCfg.MaxRetry <= retry {
@@ -51,7 +67,7 @@ func Bootstrap() {
 	logger.INFO("[#app#] server daemon started.")
 	processWaitForSignal(nil)
 	daemon.Stop()
+	close(stopCh)
 	logger.INFO("[#app#] server daemon stopped.")
 	logger.CLOSE()
 }
-

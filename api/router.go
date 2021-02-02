@@ -1,15 +1,16 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/rl5c/api-gin/api/base"
-	_ "github.com/rl5c/api-gin/api/v1"
-	_ "github.com/rl5c/api-gin/api/v2"
-	"github.com/rl5c/api-gin/conf"
-	"github.com/rl5c/api-gin/pkg/cluster"
+
+	"github.com/rl5c/api-server/api/base"
+	_ "github.com/rl5c/api-server/api/v1"
+	"github.com/rl5c/api-server/conf"
+	"github.com/rl5c/api-server/pkg/controllers"
 )
 
 type IRouter interface {
@@ -22,7 +23,7 @@ type Router struct {
 	handlers map[string]interface{}
 }
 
-func NewRouter(clusterService cluster.IClusterService, config *conf.API) IRouter {
+func NewRouter(cluster string, controller controllers.BaseController, config *conf.APIConfig) IRouter {
 	mode := gin.DebugMode
 	if !config.Debug {
 		mode = gin.ReleaseMode
@@ -39,14 +40,14 @@ func NewRouter(clusterService cluster.IClusterService, config *conf.API) IRouter
 	for _, version := range config.Version {
 		constructor := base.HandlerConstructor(version)
 		if constructor != nil {
-			handlers[version] = constructor(clusterService)
+			handlers[version] = constructor(controller)
 		}
 	}
 	router := &Router{
 		engine:   engine,
 		handlers: handlers,
 	}
-	router.initRouter()
+	router.initRouter(cluster)
 	return router
 }
 
@@ -54,11 +55,13 @@ func (router *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	router.engine.ServeHTTP(w, r)
 }
 
-func (router *Router) initRouter() {
+func (router *Router) initRouter(cluster string) {
 	for version, handler := range router.handlers {
 		if handler != nil {
-			group := router.engine.Group("/" + version)
-			handler.(base.Initializer).SetRouter(group)
+			prefix := fmt.Sprintf("/%s/%s", cluster, version)
+			crdsGroup := router.engine.Group(fmt.Sprintf("%s/crds", prefix))
+			crsGroup := router.engine.Group(fmt.Sprintf("%s/crs", prefix))
+			handler.(base.Initializer).SetRouter(crdsGroup, crsGroup)
 		}
 	}
 }
